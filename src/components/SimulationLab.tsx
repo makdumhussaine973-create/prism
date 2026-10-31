@@ -27,6 +27,8 @@ export const SimulationLab: React.FC = () => {
 
   const [output, setOutput] = useState<SimulationRunOutput | null>(null);
   const [hoveredStep, setHoveredStep] = useState<SimulationStep | null>(null);
+  const [pythonTerminalLog, setPythonTerminalLog] = useState<string>('');
+  const [isPythonRunning, setIsPythonRunning] = useState<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Run simulation whenever params change or on mount
@@ -34,6 +36,34 @@ export const SimulationLab: React.FC = () => {
     const res = runFullSimulation(params);
     setOutput(res);
   }, [params]);
+
+  const handleRunPythonSimulation = async () => {
+    setIsPythonRunning(true);
+    setPythonTerminalLog('Spawning python3 gateway/simulate.py...');
+    try {
+      const res = await fetch('/api/python/run-simulation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      const data = await res.json();
+      setIsPythonRunning(false);
+      if (data.data) {
+        setPythonTerminalLog(
+          `Python 3.10 Simulation Executed Successfully:\n` +
+          `• Manual Schedule: ${data.data.manual.water_min} min (In-band ${data.data.manual.time_in_band_pct.toFixed(1)}%)\n` +
+          `• PRISM Advisory:  ${data.data.prism.water_min} min (In-band ${data.data.prism.time_in_band_pct.toFixed(1)}%)\n` +
+          `• Water Conserved:  ${data.data.saving_pct}% (Target >= 30%: ${data.data.water_saving_pass ? 'PASS' : 'FAIL'})\n` +
+          `• In-Band Target:   ${data.data.in_band_pass ? 'PASS (>=90%)' : 'FAIL'}`
+        );
+      } else {
+        setPythonTerminalLog(data.stdout || data.stderr || 'Python simulation completed.');
+      }
+    } catch (err: any) {
+      setIsPythonRunning(false);
+      setPythonTerminalLog(`Failed to run Python simulation: ${err.message}`);
+    }
+  };
 
   // Render high-res comparison canvas
   useEffect(() => {
@@ -197,15 +227,41 @@ export const SimulationLab: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Title & Introduction */}
-      <div>
-        <h2 className="font-display font-bold text-2xl text-stone-900 dark:text-stone-100">
-          7-Day PRISM vs. Manual Irrigation Simulation
-        </h2>
-        <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
-          Executes the exact dual-bucket evapotranspiration model from <code className="text-xs font-mono bg-stone-100 dark:bg-stone-800 px-1 py-0.5 rounded">gateway/simulate.py</code>.
-          Compares PRISM rule-driven scheduling against standard rigid daily watering (35 min at 06:00).
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="font-display font-bold text-2xl text-stone-900 dark:text-stone-100">
+            7-Day PRISM vs. Manual Irrigation Simulation
+          </h2>
+          <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
+            Executes the exact dual-bucket evapotranspiration model from <code className="text-xs font-mono bg-stone-100 dark:bg-stone-800 px-1 py-0.5 rounded">gateway/simulate.py</code>.
+            Compares PRISM rule-driven scheduling against standard rigid daily watering (35 min at 06:00).
+          </p>
+        </div>
+
+        <button
+          onClick={handleRunPythonSimulation}
+          disabled={isPythonRunning}
+          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-stone-900 dark:text-stone-100 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-lg shadow-2xs transition-colors cursor-pointer self-start sm:self-auto disabled:opacity-50"
+        >
+          <Play className="w-3.5 h-3.5 text-emerald-600 fill-current" />
+          <span>{isPythonRunning ? 'Executing Python...' : 'Run python3 simulate.py'}</span>
+        </button>
       </div>
+
+      {pythonTerminalLog && (
+        <div className="p-4 rounded-xl bg-stone-950 border border-stone-800 font-mono text-xs text-emerald-300 whitespace-pre-wrap leading-relaxed">
+          <div className="text-[11px] text-stone-400 mb-2 pb-1 border-b border-stone-800 flex items-center justify-between">
+            <span>Python Subprocess: `python3 gateway/simulate.py`</span>
+            <button
+              onClick={() => setPythonTerminalLog('')}
+              className="text-stone-500 hover:text-stone-300 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+          {pythonTerminalLog}
+        </div>
+      )}
 
       {/* KPI Evaluation Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

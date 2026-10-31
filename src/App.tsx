@@ -5,6 +5,7 @@ import { SimulationLab } from './components/SimulationLab';
 import { RuleSandbox } from './components/RuleSandbox';
 import { ArchitectureView } from './components/ArchitectureView';
 import { UnitTestRunner } from './components/UnitTestRunner';
+import { PythonStudio } from './components/PythonStudio';
 import { TelemetryDrawer } from './components/TelemetryDrawer';
 import { INITIAL_NODES } from './data/mockNodes';
 import { NodeState, Reading, Context } from './types/prism';
@@ -20,7 +21,7 @@ export default function App() {
     return false;
   });
 
-  const [activeTab, setActiveTab] = useState<'monitor' | 'simulation' | 'sandbox' | 'architecture' | 'tests'>('monitor');
+  const [activeTab, setActiveTab] = useState<'monitor' | 'simulation' | 'sandbox' | 'python' | 'architecture' | 'tests'>('monitor');
   const [nodes, setNodes] = useState<NodeState[]>(INITIAL_NODES);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('prism-n01');
   const [isIngestOpen, setIsIngestOpen] = useState<boolean>(false);
@@ -105,6 +106,8 @@ export default function App() {
         {activeTab === 'simulation' && <SimulationLab />}
 
         {activeTab === 'sandbox' && <RuleSandbox />}
+
+        {activeTab === 'python' && <PythonStudio />}
 
         {activeTab === 'architecture' && <ArchitectureView />}
 

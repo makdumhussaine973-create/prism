@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sliders,
   CheckCircle2,
@@ -173,14 +173,53 @@ export const RuleSandbox: React.FC = () => {
     valid: true,
   });
 
+  const [usePythonBackend, setUsePythonBackend] = useState<boolean>(true);
+  const [pythonStatus, setPythonStatus] = useState<string>('Python 3.10');
+  const [pythonAdvisory, setPythonAdvisory] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  // Compute decision and advisory
-  const decision = decide(ctx);
-  const { advisory, meta } = buildAdvisory(ctx, decision);
+  // Local fallback calculation
+  const localDecision = decide(ctx);
+  const { advisory: localAdvisory } = buildAdvisory(ctx, localDecision);
+
+  // Whenever ctx or usePythonBackend changes, evaluate via Python backend if enabled
+  useEffect(() => {
+    let active = true;
+    if (!usePythonBackend) {
+      setPythonAdvisory(null);
+      return;
+    }
+
+    setPythonStatus('Executing Python...');
+    fetch('/api/python/decide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ctx),
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (!active) return;
+        if (res.data) {
+          setPythonAdvisory(res.data);
+          setPythonStatus('Python 3.10 Verified');
+        } else {
+          setPythonStatus('Local Fallback');
+        }
+      })
+      .catch(() => {
+        if (active) setPythonStatus('Local Fallback');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [ctx, usePythonBackend]);
+
+  const activeDecision = pythonAdvisory?.decision || localDecision;
+  const activeAdvisory = pythonAdvisory?.advisory || localAdvisory;
 
   const handleCopy = () => {
-    const raw = formatAdvisory(advisory, 'prism-sandbox', new Date().toISOString().replace('T', ' ').slice(0, 19));
+    const raw = formatAdvisory(activeAdvisory, 'prism-sandbox', new Date().toISOString().replace('T', ' ').slice(0, 19));
     navigator.clipboard.writeText(raw);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -440,21 +479,31 @@ export const RuleSandbox: React.FC = () => {
           {/* Decision Box */}
           <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                Rule Layer Evaluation
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                  Rule Layer Evaluation
+                </span>
+                <button
+                  onClick={() => setUsePythonBackend(!usePythonBackend)}
+                  className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                  title="Toggle Python 3.10 backend execution"
+                >
+                  ⚡ {pythonStatus}
+                </button>
+              </div>
+
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
-                    decision.valve_allowed
+                    activeDecision.valve_allowed
                       ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                       : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
                   }`}
                 >
-                  Valve: {decision.valve_allowed ? 'ALLOWED' : 'BLOCKED'}
+                  Valve: {activeDecision.valve_allowed ? 'ALLOWED' : 'BLOCKED'}
                 </span>
                 <span className="text-xs font-mono text-stone-400">
-                  {decision.confidence} Confidence
+                  {activeDecision.confidence} Confidence
                 </span>
               </div>
             </div>
@@ -462,43 +511,43 @@ export const RuleSandbox: React.FC = () => {
             {/* Big Action Name */}
             <div
               className={`text-3xl font-extrabold tracking-tight ${
-                decision.action === 'IRRIGATE'
+                activeDecision.action === 'IRRIGATE'
                   ? 'text-emerald-700 dark:text-emerald-400'
-                  : decision.action === 'HOLD'
+                  : activeDecision.action === 'HOLD'
                   ? 'text-amber-600 dark:text-amber-400'
                   : 'text-stone-700 dark:text-stone-300'
               }`}
             >
-              {decision.action.replace('_', ' ')}
+              {activeDecision.action.replace('_', ' ')}
             </div>
 
             {/* Rule metrics row */}
             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-mono text-stone-600 dark:text-stone-300">
               <div>
-                Reason: <strong className="text-stone-900 dark:text-stone-100">{decision.reason}</strong>
+                Reason: <strong className="text-stone-900 dark:text-stone-100">{activeDecision.reason}</strong>
               </div>
               <span className="text-stone-300 dark:text-stone-700" aria-hidden="true">·</span>
               <div>
-                Duration: <strong className="text-stone-900 dark:text-stone-100">{decision.minutes} min</strong>
+                Duration: <strong className="text-stone-900 dark:text-stone-100">{activeDecision.minutes} min</strong>
               </div>
               <span className="text-stone-300 dark:text-stone-700" aria-hidden="true">·</span>
               <div>
-                Window: <strong className="text-stone-900 dark:text-stone-100">{decision.window}</strong>
+                Window: <strong className="text-stone-900 dark:text-stone-100">{activeDecision.window}</strong>
               </div>
               <span className="text-stone-300 dark:text-stone-700" aria-hidden="true">·</span>
               <div>
-                Priority: <strong className="text-stone-900 dark:text-stone-100">{decision.priority}</strong>
+                Priority: <strong className="text-stone-900 dark:text-stone-100">{activeDecision.priority}</strong>
               </div>
             </div>
 
             {/* Agronomic Text */}
             <div className="mt-4 p-3 rounded-lg bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700/60 text-xs leading-relaxed text-stone-700 dark:text-stone-200">
               <div className="font-semibold text-stone-900 dark:text-stone-100 mb-0.5">Agronomic Justification:</div>
-              {advisory.justification}
-              {advisory.warnings.length > 0 && (
+              {activeAdvisory.justification}
+              {activeAdvisory.warnings && activeAdvisory.warnings.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-stone-200 dark:border-stone-700 text-amber-700 dark:text-amber-400 flex items-center gap-1.5 font-medium">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Warning: {advisory.warnings.join(', ')}</span>
+                  <span>Warning: {activeAdvisory.warnings.join(', ')}</span>
                 </div>
               )}
             </div>
@@ -522,7 +571,7 @@ export const RuleSandbox: React.FC = () => {
               <span>Deterministic Execution Trace</span>
             </div>
             <div className="space-y-1 overflow-x-auto max-h-56">
-              {decision.trace.map((line, idx) => (
+              {(activeDecision.trace || []).map((line: string, idx: number) => (
                 <div
                   key={idx}
                   className={

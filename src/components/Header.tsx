@@ -2,8 +2,8 @@ import React from 'react';
 import { Sprout, Sun, Moon, Play } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'monitor' | 'simulation' | 'sandbox' | 'architecture' | 'tests';
-  onSelectTab: (tab: 'monitor' | 'simulation' | 'sandbox' | 'architecture' | 'tests') => void;
+  activeTab: 'monitor' | 'simulation' | 'sandbox' | 'python' | 'architecture' | 'tests';
+  onSelectTab: (tab: 'monitor' | 'simulation' | 'sandbox' | 'python' | 'architecture' | 'tests') => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
   onQuickSimulate: () => void;
@@ -35,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Zone 2: Single-line Text Navigation Links */}
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-stone-600 dark:text-stone-300">
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-stone-600 dark:text-stone-300">
           <button
             onClick={() => onSelectTab('monitor')}
             className={`whitespace-nowrap shrink-0 transition-colors pb-1 border-b-2 cursor-pointer ${
@@ -64,7 +64,17 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'border-transparent hover:text-stone-900 dark:hover:text-stone-100 hover:border-stone-300 dark:hover:border-stone-700'
             }`}
           >
-            Rule Sandbox (R0-R10)
+            Rule Sandbox
+          </button>
+          <button
+            onClick={() => onSelectTab('python')}
+            className={`whitespace-nowrap shrink-0 transition-colors pb-1 border-b-2 cursor-pointer ${
+              activeTab === 'python'
+                ? 'border-emerald-600 text-emerald-800 dark:text-emerald-400 font-semibold'
+                : 'border-transparent hover:text-stone-900 dark:hover:text-stone-100 hover:border-stone-300 dark:hover:border-stone-700'
+            }`}
+          >
+            Python Engine
           </button>
           <button
             onClick={() => onSelectTab('architecture')}
@@ -74,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'border-transparent hover:text-stone-900 dark:hover:text-stone-100 hover:border-stone-300 dark:hover:border-stone-700'
             }`}
           >
-            ESP32 Architecture
+            Architecture
           </button>
           <button
             onClick={() => onSelectTab('tests')}
@@ -128,6 +138,12 @@ export const Header: React.FC<HeaderProps> = ({
           className={`whitespace-nowrap ${activeTab === 'sandbox' ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-stone-600 dark:text-stone-400'}`}
         >
           Rule Sandbox
+        </button>
+        <button
+          onClick={() => onSelectTab('python')}
+          className={`whitespace-nowrap ${activeTab === 'python' ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-stone-600 dark:text-stone-400'}`}
+        >
+          Python 3.10
         </button>
         <button
           onClick={() => onSelectTab('architecture')}

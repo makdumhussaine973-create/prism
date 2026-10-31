@@ -16,6 +16,8 @@ export const UnitTestRunner: React.FC = () => {
   const [results, setResults] = useState<UnitTestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [lastRunTime, setLastRunTime] = useState<string>('');
+  const [pythonOutput, setPythonOutput] = useState<string>('');
+  const [isPythonRunning, setIsPythonRunning] = useState<boolean>(false);
 
   const executeTests = () => {
     setIsRunning(true);
@@ -25,6 +27,25 @@ export const UnitTestRunner: React.FC = () => {
       setIsRunning(false);
       setLastRunTime(new Date().toLocaleTimeString());
     }, 200);
+  };
+
+  const executePythonBackendTests = async () => {
+    setIsPythonRunning(true);
+    setPythonOutput('Spawning python3 tests/test_rules.py...');
+    try {
+      const res = await fetch('/api/python/run-tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      setIsPythonRunning(false);
+      setPythonOutput(data.stdout || data.stderr);
+      // Also sync client tests
+      executeTests();
+    } catch (err: any) {
+      setIsPythonRunning(false);
+      setPythonOutput(`Python runner error: ${err.message}`);
+    }
   };
 
   useEffect(() => {
@@ -48,18 +69,29 @@ export const UnitTestRunner: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={executeTests}
-          disabled={isRunning}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg shadow-sm transition-colors cursor-pointer self-start sm:self-auto disabled:opacity-50"
-        >
-          {isRunning ? (
-            <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Play className="w-3.5 h-3.5 fill-current" />
-          )}
-          <span>{isRunning ? 'Running Tests...' : 'Rerun 10 Tests'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            onClick={executePythonBackendTests}
+            disabled={isPythonRunning}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-stone-800 dark:text-stone-200 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{isPythonRunning ? 'Executing Python...' : 'Run with python3 test_rules.py'}</span>
+          </button>
+
+          <button
+            onClick={executeTests}
+            disabled={isRunning}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {isRunning ? (
+              <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Play className="w-3.5 h-3.5 fill-current" />
+            )}
+            <span>{isRunning ? 'Running...' : 'Rerun Client Suite'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Summary Scorecard */}
@@ -107,6 +139,19 @@ export const UnitTestRunner: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Python Backend Terminal Output */}
+      {pythonOutput && (
+        <div className="bg-stone-950 border border-stone-800 rounded-xl p-4 font-mono text-xs text-stone-200">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-stone-800 text-[11px] text-emerald-400">
+            <Terminal className="w-3.5 h-3.5" />
+            <span>Python 3.10 Subprocess stdout (`tests/test_rules.py`)</span>
+          </div>
+          <pre className="whitespace-pre-wrap leading-relaxed text-emerald-300">
+            {pythonOutput}
+          </pre>
+        </div>
+      )}
 
       {/* Test List Table */}
       <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl overflow-hidden shadow-xs">
