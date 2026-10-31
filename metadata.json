@@ -1,0 +1,6 @@
+{
+  "name": "PRISM Precision Irrigation",
+  "description": "AI-based precision irrigation advisory & edge gateway platform with deterministic safety rules, ESP32 telemetry, and 7-day soil moisture simulation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
